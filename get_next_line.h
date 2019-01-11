@@ -5,8 +5,8 @@
 /*                                                    +:+ +:+         +:+     */
 /*   By: dwdraugr <dwdraugr@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2018/12/07 16:19:25 by dwdraugr          #+#    #+#             */
-/*   Updated: 2019/01/09 15:48:17 by dwdraugr         ###   ########.fr       */
+/*   Created: 2018/12/07 16:19:29 by dwdraugr          #+#    #+#             */
+/*   Updated: 2019/01/11 17:31:56 by dwdraugr         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
@@ -18,10 +18,7 @@
 # define BUFF_SIZE 32
 
 # define MALL_CHECK(x) if (!(x)) return (-1);
-# define ERRCHECK(x, y, z) if ((x) < 0 || (y) == NULL || (z) < 0) return (-1);
-# define READ_CHECK(r) if ((r) == 0) return (0); else if ((r) < 0) return (-1);
-# define BUFF_CHECK(buf) if ((buf) == NULL) return (0);
-# define START_CHECK(fd, li) if ((fd) < 0 || (line) == NULL) return (-1);
+# define VAL_FILE(f, l, r) if ((f) < 0 || (l) == NULL || (r) < 0) return (-1);
 
 typedef struct			s_fd_list
 {

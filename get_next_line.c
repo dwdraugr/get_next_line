@@ -5,29 +5,47 @@
 /*                                                    +:+ +:+         +:+     */
 /*   By: dwdraugr <dwdraugr@student.42.fr>          +#+  +:+       +#+        */
 /*                                                +#+#+#+#+#+   +#+           */
-/*   Created: 2018/12/07 16:19:25 by dwdraugr          #+#    #+#             */
-/*   Updated: 2018/12/22 18:50:40 by dwdraugr         ###   ########.fr       */
+/*   Created: 2018/12/24 15:53:35 by dwdraugr          #+#    #+#             */
+/*   Updated: 2019/01/11 18:03:39 by dwdraugr         ###   ########.fr       */
 /*                                                                            */
 /* ************************************************************************** */
 
 #include "get_next_line.h"
 #include "libft/libft.h"
-#include <fcntl.h>
-#include <stdio.h>
 
 /*
-** 	strplus - add a block of memory in current string.
-**	returned 1 if so cool
+** return element with equal fd or create new, if it is missing
 */
 
-int			ft_strplus(char **str, size_t add)
+static t_list	*get_struct(t_list **file, int fd)
+{
+	t_list	*tmp;
+
+	tmp = *file;
+	while (tmp)
+	{
+		if ((int)tmp->content_size == fd)
+			return (tmp);
+		tmp = tmp->next;
+	}
+	tmp = ft_lstnew("\0", fd);
+	ft_lstadd(file, tmp);
+	*file = tmp;
+	return (*file);
+}
+
+/*
+** ft_strplus - create fresh string with size = old_size + add
+*/
+
+static int		ft_strplus(char **str, size_t add)
 {
 	char	*tmp;
 	size_t	len;
 
 	tmp = ft_strdup(*str);
 	len = ft_strlen(tmp);
-	ft_strdel(str);
+	free(*str);
 	*str = ft_strnew(len + add);
 	ft_strncpy(*str, tmp, len);
 	ft_strdel(&tmp);
@@ -35,143 +53,77 @@ int			ft_strplus(char **str, size_t add)
 }
 
 /*
-**	add new element for current list or create new list if lst - NULL
-**	returned 1, if so cool and 0 if have problem with malloc
+** copy_to_chr -	add read the characters in destination
+**					until we find the value of c
+** 70-73 search c-char in src
+** 79-80 add every character in destination
 */
 
-int			add_lst(t_fd_list **lst, int fd)
+static int		copy_to_chr(char **dst, char **src, char c)
 {
-	t_fd_list *tmp;
-	t_fd_list *new_list;
+	int		i;
+	int		count;
+	int		pos;
+	char	*tmp;
 
-	tmp = *lst;
-	if (tmp == NULL)
+	i = -1;
+	tmp = *src;
+	count = 0;
+	while (tmp[++i])
+		if (tmp[i] == c)
+			break ;
+	pos = i;
+	if (!(*dst = ft_strnew(i + 1)))
+		return (0);
+	while (tmp[count] && count < i)
 	{
-		if (!(*lst = malloc(sizeof(t_fd_list))))
-			return (0);
-		(*lst)->fd = fd;
-		(*lst)->buf = ft_strnew(BUFF_SIZE);
-		(*lst)->next = NULL;
-		return (1);
+		ft_strncat(*dst, tmp + count, 1);
+		count++;
 	}
-	else
-	{
-		if (!(new_list = malloc(sizeof(t_fd_list))))
-			return (0);
-		new_list->fd = fd;
-		new_list->buf = ft_strnew(BUFF_SIZE);
-		new_list->next = *lst;
-		*lst = new_list;
-		return (1);
-	}
+	free(*src);
+	*src = tmp;
+	return (pos);
 }
 
 /*
-** search element in list by fd. On success returned point to element with
-** same fd, else NULL
+** get_next_line -	reads from a file one line in line
+**					return 1 if line is read successfully
+** 					return 0 if reading complete
+**					return -1 if error
+**	110: check input
+**	111: obtain a structure with handle
+**	112-119: until we don't find \n, continue reading
+**	120-121: if we have reached end of file we exit of function
+**	123-125: coping line in line
+**	127: if we wrote in line last characters, clear content in current
+**		 structure
 */
 
-t_fd_list	*search_lst(t_fd_list *lst, int fd)
+int				get_next_line(const int fd, char **line)
 {
-	while (lst)
-	{
-		if (lst->fd == fd)
-			return (lst);
-		lst = lst->next;
-	}
-	return (NULL);
-}
+	char			buf[BUFF_SIZE + 1];
+	static t_list	*fd_lst;
+	t_list			*curr;
+	int				read_bytes;
+	int				i;
 
-int			get_next_line(const int fd, char **line)
-{
-	static t_fd_list	*lst = NULL;
-	t_fd_list			*current_lst;
-	char				*end_line;
-	char				*result;
-	int					read_bytes;
-
-	START_CHECK(fd, line);
-	if (NULL == (current_lst = search_lst(lst, fd)))
+	VAL_FILE(fd, line, read(fd, buf, 0));
+	curr = get_struct(&fd_lst, fd);
+	while ((read_bytes = read(fd, buf, BUFF_SIZE)))
 	{
-		add_lst(&lst, fd);
-		current_lst = lst;
-		read_bytes = read(current_lst->fd, current_lst->buf, BUFF_SIZE);
-		READ_CHECK(read_bytes);
-		*(current_lst->buf + read_bytes) = '\0';
+		buf[read_bytes] = '\0';
+		MALL_CHECK(ft_strplus((char**)(&curr->content), read_bytes));
+		ft_strncat((char*)curr->content, buf, read_bytes);
+		if (ft_strchr(buf, '\n'))
+			break ;
 	}
-	BUFF_CHECK(current_lst->buf);
-	result = ft_strnew(BUFF_SIZE);
-	if ((end_line = ft_strchr(current_lst->buf, '\n')) == NULL)
-	{
-		ft_strcpy(result, current_lst->buf);
-		read_bytes = read(fd, current_lst->buf, BUFF_SIZE);
-		if (read_bytes == 0)
-		{
-			*line = ft_strdup(result);
-			ft_strdel(&result);
-			if (*current_lst->buf == '\0')
-				return (0);
-			else
-			{
-				ft_strdel(&current_lst->buf);
-				current_lst->buf = NULL;
-				return (1);
-			}
-		}
-		*(current_lst->buf + read_bytes) = '\0';
-		while ((end_line = ft_strchr(current_lst->buf, '\n')) == NULL)
-		{
-			ft_strplus(&result, read_bytes);
-			ft_strncat(result, current_lst->buf, BUFF_SIZE);
-			read_bytes = read(fd, current_lst->buf, BUFF_SIZE);
-			if (read_bytes == 0)
-			{
-				*line = ft_strdup(result);
-				ft_strdel(&result);
-				ft_strdel(&current_lst->buf);
-				current_lst->buf = NULL;
-				return (1);
-			}
-			*(current_lst->buf + read_bytes) = '\0';
-		}
-		ft_strplus(&result, read_bytes);
-		ft_strncat(result, current_lst->buf, end_line - current_lst->buf);
-		ft_strcpy(current_lst->buf, ++end_line);
-	}
+	if (read_bytes < BUFF_SIZE && !ft_strlen((char*)curr->content))
+		return (0);
+	i = copy_to_chr(line, (char**)&curr->content, '\n');
+	if (i < (int)ft_strlen(curr->content))
+		curr->content = ft_strsub(curr->content, i + 1,
+							ft_strlen(&curr->content[i + 1] - 1));
 	else
-	{
-		ft_strncpy(result, current_lst->buf, end_line - current_lst->buf);
-		ft_strcpy(current_lst->buf, ++end_line);
-	}
-	*line = ft_strdup(result);
-	ft_strdel(&result);
+		ft_strclr(curr->content);
 	return (1);
 }
-
-/*
-** int main()
-** {
-** 	char *str;
-** 	int aa, bb, cc, dd;
-** 	int a = open("file.txt", O_RDONLY);
-** 	int b = open("lines.txt", O_RDONLY);
-** 	int c = open("gnl7_1.txt", O_RDONLY);
-** 	int d = open("gnl7_2.txt", O_RDONLY);
-** 	letsgo:
-** 	aa = get_next_line(a, &str);
-** 	printf("FILE.TXT: %s\n\n", str);
-** 	ft_strdel(&str);
-** 	bb = get_next_line(b, &str);
-** 	printf("LINES.TXT: %s\n\n", str);
-** 	ft_strdel(&str);
-** 	cc = get_next_line(c, &str);
-** 	printf("GNL7_1.TXT: %s\n\n", str);
-** 	ft_strdel(&str);
-** 	dd = get_next_line(d, &str);
-** 	printf("GNL7_2.TXT: %s\n==============================\n", str);
-** 	ft_strdel(&str);
-** 	if (aa || bb || cc || dd)
-** 		goto letsgo;
-** 	return (0);
-** }
-*/
